@@ -1,3 +1,5 @@
+const chrome = require('chrome-stub');
+
 document.getElementById('transcription').onclick = sendMessageTab;
 document.getElementById('history').onclick = sendHistoryMessageTab;
 document.getElementById('stop').onclick = sendStopMessageTab;

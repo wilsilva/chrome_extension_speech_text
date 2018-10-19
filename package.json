@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/wilsilva/chrome_extension_speech_text#readme",
   "dependencies": {
+    "chrome-stub": "^1.6.0",
     "electron": "^3.0.4",
     "menubar": "^5.2.3"
   }
