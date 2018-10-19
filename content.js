@@ -2,19 +2,20 @@ var showMaxSpeeches = 10
 var wholeText = ""
 var recognition = new webkitSpeechRecognition();
 var isStopRecognized = false
+var languague = "pt-BR"
 
 div = document.createElement('div');
 setDivStyle(div);
 
 recognition.continuous = false;
 recognition.interimResults = true;
-recognition.lang = "pt-BR";
+recognition.lang = languague;
 
-recognition.onresult = function(event) { 
+recognition.onresult = function(event) {
   console.log("speech start")
   var sentence = makeASentence(event);
   makeClosedCaption(sentence)
-}
+} 
 
 recognition.onspeechend = function() {
   console.log('Speech has stopped being detected');
@@ -38,57 +39,54 @@ recognition.onerror = function(event) {
   console.log(event.error);
 }
 
-
 chrome.runtime.onMessage.addListener(
   function(request, sender, sendResponse) {
+
     if (request.action == "transcription") {
       isStopRecognized = false
       startRecognition();
     } else if (request.action == "history") {
-      console.log(wholeText)
+      generatePDF();
     } else if (request.action == "stop") {
       isStopRecognized = true
       recognition.stop();
+    } else if (request.language) {
+      recognition.lang = request.language;
     }
-  });
+});
 
-  function startRecognition() {
-    recognition.start();
+function startRecognition() {
+  recognition.start();
+}
+
+function makeASentence(event) {
+  var partialSentence = ""
+  var totalSentence = ""
+  var newResults = event.results
+  var results = event.results
+
+  for (i=0; i<results.length; i++) {
+    if (results[i][0].confidence > 0.8 && results[i].isFinal ) {
+      totalSentence += results[i][0].transcript
+      totalSentence += " "
+    }
   }
 
-  function makeASentence(event) {
-    var partialSentence = ""
-    var totalSentence = ""
-    var newResults = event.results
-    var results = event.results
-
-    for (i=0; i<results.length; i++) {
-      if (results[i][0].confidence > 0.8 && results[i].isFinal ) {
-        totalSentence += results[i][0].transcript
-        totalSentence += " "
-      }
-    }
-
-    if (newResults.length > showMaxSpeeches) {
-      var tempArray = Array.from(newResults)
-      newResults = tempArray.slice(newResults.length - 2, newResults.length)
-    }
-
-    for (i=0; i<newResults.length; i++) {
-      if (newResults[i][0].confidence > 0.8) {
-        partialSentence += newResults[i][0].transcript
-      }
-    }
-
-    wholeText += totalSentence
-    
-    return partialSentence
+  if (newResults.length > showMaxSpeeches) {
+    var tempArray = Array.from(newResults)
+    newResults = tempArray.slice(newResults.length - 2, newResults.length)
   }
 
-  function makeClosedCaption(text) {
-    div.textContent = text;
-    document.body.appendChild(div);
+  for (i=0; i<newResults.length; i++) {
+    if (newResults[i][0].confidence > 0.8) {
+      partialSentence += newResults[i][0].transcript
+    }
   }
+
+  wholeText += totalSentence
+  
+  return partialSentence
+}
 
   function setDivStyle() {
     div.style.bottom = '5%';
@@ -106,3 +104,36 @@ chrome.runtime.onMessage.addListener(
     div.style.zIndex= "10000";
     div.style.fontFamily = "Arial";
   }
+
+function generatePDF() {
+  var doc = new jsPDF('p', 'in', 'letter'),
+    sizes = [12, 16, 20],
+    fonts = [['Helvetica', '']],
+    font, size, lines,
+    margin = 0.5, // inches on a 8.5 x 11 inch sheet.
+    verticalOffset = margin
+
+
+  for (var i in fonts) {
+    if (fonts.hasOwnProperty(i)) {
+      font = fonts[i]
+      size = sizes[i]
+
+      lines = doc.setFont(font[0], font[1])
+        .setFontSize(size)
+        .splitTextToSize(wholeText, 7.5)
+
+      doc.text(0.5, verticalOffset + size / 72, lines)
+
+      verticalOffset += (lines.length + 0.5) * size / 72
+    }
+  }
+
+  doc.save('a4.pdf')
+}
+
+
+function makeClosedCaption(text) {
+  div.textContent = text;
+  document.body.appendChild(div);
+}
